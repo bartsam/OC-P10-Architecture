@@ -41,7 +41,8 @@ Cette PoC (preuve de concept) valide la viabilité des choix architecturaux de l
 
 ## 2. Prérequis
 
-- Docker Desktop lancé.
+- JDK 25 (LTS), vérifier avec `java -version`
+- Docker Desktop lancé
 
 ## 3. Installation
 
@@ -56,6 +57,15 @@ docker compose down # arrêt (les données sont conservées)
 ```
 
 Le fichier `.env` n'est jamais versionné (seul `.env.example` l'est).
+
+## 4. Lancement
+
+### Back-end
+
+```bash
+cd back
+./mvnw spring-boot:run   # démarre PostgreSQL (compose.yaml) puis l'API sur http://localhost:8080
+```
 
 ## 7. Arborescence
 
