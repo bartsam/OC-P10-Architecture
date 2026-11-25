@@ -34,6 +34,7 @@ Cette PoC (preuve de concept) valide la viabilité des choix architecturaux de l
 
 | Fonctionnalité                  | PoC                                                                                                                                                                     | Cible                                                                                                                               |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Statut de conversation          | Pas de statut : toutes les conversations restent ouvertes et tout agent peut répondre.                                                                                  | Statut `OPEN` / `CLOSED`, une conversation `CLOSED` n'accepte plus de nouveaux messages.                                            |
 | Authentification et rôles       | Deux utilisateurs fictifs (`CUSTOMER` et `AGENT`) déterminés par la vue ouverte, sans mot de passe ni contrôle d'accès (quiconque dispose du lien agent peut répondre). | JWT à courte durée de vie, refresh token révocable dans Redis et vérification des rôles et droits côté serveur via Spring Security. |
 | Plusieurs instances et Redis    | Une seule instance du back-end tourne avec le broker STOMP en mémoire de Spring.                                                                                        | Plusieurs instances derrière un load balancer, avec diffusion des messages entre elles via Redis pub/sub.                           |
 | Conteneurs et déploiement cloud | Seule la base PostgreSQL tourne dans Docker, tandis que le back et le front restent en local.                                                                           | Conteneurs déployés par la CI/CD sur deux zones de disponibilité.                                                                   |
@@ -51,7 +52,7 @@ Cette PoC (preuve de concept) valide la viabilité des choix architecturaux de l
 ```bash
 cd back
 cp .env.example .env # puis choisir un mot de passe dans .env
-docker compose up -d # démarre PostgreSQL
+docker compose up -d # démarre PostgreSQL (facultatif : Spring Boot lance la base automatiquement)
 docker compose ps # l'état doit passer à "healthy"
 docker compose down # arrêt (les données sont conservées)
 ```
@@ -74,4 +75,37 @@ cd back
 ├── back/    # API Spring Boot + WebSocket STOMP
 ├── front/   # Application Angular
 └── README.md
+```
+
+## 8. Structure des données
+
+Le schéma est créé par Flyway (`back/src/main/resources/db/migration`) : `V1` pour les
+tables, `V2` pour deux utilisateurs de démonstration (avec des id sous forme de UUID fixes).
+
+```mermaid
+erDiagram
+    user_account ||--o{ conversation : "ouvre (user_id)"
+    conversation ||--o{ message : "contient (conversation_id)"
+    user_account ||--o{ message : "envoie (sender_id)"
+```
+
+| Table          | Colonnes                                                                         | Remarque                                                                                                |
+| -------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `user_account` | `id`, `first_name`, `last_name`, `role` (`CUSTOMER`/`AGENT`), `created_at`       | Sous-ensemble de la table `user_account` de la proposition d'architecture (sans email ni mot de passe). |
+| `conversation` | `id`, `user_id`, `created_at`                                                    | `user_id` : le client de démonstration.                                                                 |
+| `message`      | `id`, `conversation_id`, `sender_id`, `content` (1 à 2000 caractères), `sent_at` | `sent_at` est fixé par le serveur ; l'historique est trié dessus.                                       |
+
+## 9. Dépannage
+
+### Flyway
+
+#### Migration checksum mismatch
+
+Une migration déjà appliquée a été modifiée. En développement, réinitialiser la base
+(les données de démonstration sont perdues) :
+
+```bash
+cd back
+docker compose down -v
+./mvnw spring-boot:run
 ```
