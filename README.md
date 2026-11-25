@@ -38,7 +38,24 @@ Cette PoC (preuve de concept) valide la viabilité des choix architecturaux de l
 | Plusieurs instances et Redis    | Une seule instance du back-end tourne avec le broker STOMP en mémoire de Spring.                                                                                        | Plusieurs instances derrière un load balancer, avec diffusion des messages entre elles via Redis pub/sub.                           |
 | Conteneurs et déploiement cloud | Seule la base PostgreSQL tourne dans Docker, tandis que le back et le front restent en local.                                                                           | Conteneurs déployés par la CI/CD sur deux zones de disponibilité.                                                                   |
 | Modèle de données complet       | Limité aux tables `user_account`, `conversation` et `message`, réduites aux colonnes nécessaires au tchat.                                                              | Schéma PostgreSQL unique couvrant utilisateurs, agences, véhicules, réservations, paiements et conversations.                       |
-| Tests automatisés               | La vérification .                                                                                                                                                       | Schéma PostgreSQL unique couvrant utilisateurs, agences, véhicules, réservations, paiements et conversations.                       |
+
+## 2. Prérequis
+
+- Docker Desktop lancé.
+
+## 3. Installation
+
+### Base de données
+
+```bash
+cd back
+cp .env.example .env # puis choisir un mot de passe dans .env
+docker compose up -d # démarre PostgreSQL
+docker compose ps # l'état doit passer à "healthy"
+docker compose down # arrêt (les données sont conservées)
+```
+
+Le fichier `.env` n'est jamais versionné (seul `.env.example` l'est).
 
 ## 7. Arborescence
 
