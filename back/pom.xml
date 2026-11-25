@@ -11,7 +11,7 @@
 	</parent>
 	
 	<groupId>com.yourcaryourway</groupId>
-	<artifactId>chat</artifactId>
+	<artifactId>poc-chat</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
   <name>poc-chat</name>
   <description>PoC du tchat Your Car Your Way</description>

@@ -1,10 +1,10 @@
-package com.yourcaryourway.chat;
+package com.yourcaryourway.poc;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class ChatApplicationTests {
+class PocApplicationTests {
 
 	@Test
 	void contextLoads() {
