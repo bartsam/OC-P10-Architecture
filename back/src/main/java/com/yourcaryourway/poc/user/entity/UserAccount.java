@@ -16,6 +16,7 @@ import jakarta.persistence.Table;
 public class UserAccount {
 
   @Id
+  // Non généré par JPA : fixé par la migration V2
   private UUID id;
 
   @Column(name = "first_name", nullable = false)

@@ -68,6 +68,17 @@ cd back
 ./mvnw spring-boot:run   # démarre PostgreSQL (compose.yaml) puis l'API sur http://localhost:8080
 ```
 
+## 6. Fonctionnement
+
+### API REST
+
+| Méthode | URL                                | Réponse                                                         |
+| ------- | ---------------------------------- | --------------------------------------------------------------- |
+| GET     | `/api/users`                       | Utilisateurs de démonstration                                   |
+| POST    | `/api/conversations`               | `201`, conversation créée (sans corps de requête)               |
+| GET     | `/api/conversations`               | Conversations, plus récentes d'abord                            |
+| GET     | `/api/conversations/{id}/messages` | Historique chronologique, `404` si la conversation est inconnue |
+
 ## 7. Arborescence
 
 ```text
