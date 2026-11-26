@@ -10,6 +10,9 @@ import com.yourcaryourway.poc.user.dto.UserResponse;
 import com.yourcaryourway.poc.user.entity.Role;
 import com.yourcaryourway.poc.user.repository.UserAccountRepository;
 
+/**
+ * Service du module user : accès aux utilisateurs pour les autres modules.
+ */
 @Service
 public class UserService {
 
@@ -19,19 +22,39 @@ public class UserService {
     this.userRepository = userRepository;
   }
 
+  /**
+   * Liste les utilisateurs de démonstration.
+   *
+   * @return tous les utilisateurs
+   */
   @Transactional(readOnly = true)
   public List<UserResponse> findAll() {
     return userRepository.findAll().stream().map(UserResponse::from).toList();
   }
 
   /**
-   * PoC sans authentification : le client de démonstration ouvre toutes les
-   * conversations.
+   * Fournit le customer de démonstration.
+   * (PoC sans authentification : user qui ouvre toutes les conversations).
+   *
+   * @return identifiant de l'utilisateur de rôle CUSTOMER
+   * @throws IllegalStateException si aucun CUSTOMER n'existe en base
    */
   @Transactional(readOnly = true)
   public UUID getDemoCustomerId() {
     return userRepository.findFirstByRole(Role.CUSTOMER)
         .orElseThrow(() -> new IllegalStateException("Aucun utilisateur CUSTOMER de démonstration en base"))
         .getId();
+  }
+
+  /**
+   * Indique si un utilisateur existe.
+   *
+   * @param userId identifiant recherché
+   * @return {@code true} si l'utilisateur existe
+   */
+
+  @Transactional(readOnly = true)
+  public boolean existsById(UUID userId) {
+    return userRepository.existsById(userId);
   }
 }

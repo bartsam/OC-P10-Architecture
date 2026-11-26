@@ -87,6 +87,17 @@ Documentation interactive (back lancé) :
 > Swagger UI et `/v3/api-docs` sont activés pour la démo. En production, ils seraient désactivés
 > (`springdoc.swagger-ui.enabled=false` et `springdoc.api-docs.enabled=false`).
 
+### Temps réel (WebSocket STOMP)
+
+| Usage              | Destination                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| Connexion          | `ws://localhost:8080/ws` (via le proxy Angular : `/ws`)                           |
+| Envoi d'un message | `/app/conversations/{id}/messages`, corps `{"senderId": "...", "content": "..."}` |
+| Réception          | abonnement à `/topic/conversations/{id}`                                          |
+
+Le serveur valide le message (non vide, 2000 caractères maximum, expéditeur existant), l'enregistre,
+puis le diffuse. Un message invalide est journalisé et ignoré.
+
 ## 7. Arborescence
 
 ```text
