@@ -68,6 +68,13 @@ cd back
 ./mvnw spring-boot:run   # démarre PostgreSQL (compose.yaml) puis l'API sur http://localhost:8080
 ```
 
+### Tests du back-end
+
+```bash
+cd back
+./mvnw test   # Docker Desktop doit être lancé : une base PostgreSQL jetable est créée (Testcontainers)
+```
+
 ## 6. Fonctionnement
 
 ### API REST
