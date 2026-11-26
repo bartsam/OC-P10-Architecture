@@ -79,6 +79,14 @@ cd back
 | GET     | `/api/conversations`               | Conversations, plus récentes d'abord                            |
 | GET     | `/api/conversations/{id}/messages` | Historique chronologique, `404` si la conversation est inconnue |
 
+Documentation interactive (back lancé) :
+
+- Swagger UI : <http://localhost:8080/swagger-ui.html>
+- Spécification OpenAPI (JSON) : <http://localhost:8080/v3/api-docs>
+
+> Swagger UI et `/v3/api-docs` sont activés pour la démo. En production, ils seraient désactivés
+> (`springdoc.swagger-ui.enabled=false` et `springdoc.api-docs.enabled=false`).
+
 ## 7. Arborescence
 
 ```text
