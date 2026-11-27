@@ -1,16 +1,15 @@
 package com.yourcaryourway.poc.chat.controller;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.awaitility.Awaitility.await;
 
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterEach;
@@ -25,7 +24,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.messaging.Message;
-import org.springframework.messaging.converter.StringMessageConverter;
+import org.springframework.messaging.converter.JacksonJsonMessageConverter;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.broker.SimpleBrokerMessageHandler;
@@ -34,23 +33,23 @@ import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
 import org.springframework.messaging.support.MessageBuilder;
-import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 
-import com.jayway.jsonpath.JsonPath;
 import com.yourcaryourway.poc.TestcontainersConfiguration;
+import com.yourcaryourway.poc.chat.dto.MessageRequest;
 import com.yourcaryourway.poc.chat.dto.MessageResponse;
 import com.yourcaryourway.poc.chat.service.ChatService;
 
 /**
- * Teste l'envoi d'un message de bout en bout : client STOMP → contrôleur →
- * service → base PostgreSQL → diffusion aux abonnés.
+ * Test d'intégration du tchat :
+ * client STOMP → contrôleur → service → base PostgreSQL → diffusion abonnés
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import(TestcontainersConfiguration.class)
 class MessageControllerIntegrationTest {
 
+  /** Client de démonstration inséré par la migration Flyway V2. */
   private static final UUID CUSTOMER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
   private static final long TIMEOUT_SECONDS = 5;
 
@@ -60,51 +59,48 @@ class MessageControllerIntegrationTest {
   @Autowired
   private ChatService chatService;
 
-  // Broker STOMP en mémoire de Spring
   @Autowired
-  private SimpleBrokerMessageHandler brokerHandler;
+  private SimpleBrokerMessageHandler broker;
 
-  // File d'attente où un thread WebSocket met chaque message diffusé sur le topic
-  private final BlockingQueue<String> received = new LinkedBlockingQueue<>();
+  /** File d'attente des messages reçus par le client abonné. */
+  private final BlockingQueue<MessageResponse> received = new LinkedBlockingQueue<>();
 
   private StompSession session;
   private UUID conversationId;
 
-  // Prépare une nouvelle conversation et un client abonné à son topic.
   @BeforeEach
   void connectAndSubscribe() throws Exception {
-    // 1. Crée la conversation dans laquelle le test va écrire.
+    // 1. Crée la conversation du test.
     conversationId = chatService.createConversation().id();
 
-    // 2. Crée un client STOMP qui lit les messages JSON comme du texte brut
+    // 2. Crée un client STOMP qui convertit les messages depuis et vers JSON.
     WebSocketStompClient client = new WebSocketStompClient(new StandardWebSocketClient());
-    client.setMessageConverter(new JsonStringMessageConverter());
+    client.setMessageConverter(new JacksonJsonMessageConverter());
 
-    // 3. Ouvre la connexion WebSocket sur le vrai point d'entrée du serveur.
+    // 3. Se connecte au point d'entrée WebSocket /ws.
     session = client
         .connectAsync("ws://localhost:" + port + "/ws", new StompSessionHandlerAdapter() {
         })
-        .get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        .get(TIMEOUT_SECONDS, SECONDS);
 
     // 4. S'abonne au topic : chaque message diffusé est rangé dans "received".
     session.subscribe(topic(), new StompFrameHandler() {
       @Override
       public Type getPayloadType(StompHeaders headers) {
-        return String.class;
+        return MessageResponse.class;
       }
 
       @Override
       public void handleFrame(StompHeaders headers, Object payload) {
-        received.add((String) payload);
+        received.add((MessageResponse) payload);
       }
     });
 
-    // 5. L'abonnement est asynchrone : on attend que le broker l'ait enregistré,
-    // sinon un message envoyé trop tôt serait diffusé à personne.
-    awaitSubscriptionRegistered();
+    // 5. Attend l'enregistrement de l'abonnement par le broker avant tout envoi.
+    await().atMost(Duration.ofSeconds(TIMEOUT_SECONDS)).until(this::isSubscribed);
   }
 
-  // Ferme la session STOMP ouverte pour le test.
+  /** Ferme la session STOMP ouverte pour le test. */
   @AfterEach
   void disconnect() {
     if (session != null && session.isConnected()) {
@@ -112,142 +108,104 @@ class MessageControllerIntegrationTest {
     }
   }
 
-  /** Un message valide est enregistré, puis diffusé avec les champs attendus. */
   @Test
   @DisplayName("Un message valide est enregistré puis diffusé aux abonnés")
   void validMessage_isSavedThenBroadcast() throws Exception {
     // GIVEN : un message d'un client connu.
-    String message = json(CUSTOMER_ID, "Bonjour");
+    MessageRequest request = new MessageRequest(CUSTOMER_ID, "Bonjour");
 
-    // WHEN : il est envoyé, puis on attend sa diffusion (max TIMEOUT_SECONDS).
-    send(message);
-    String frame = received.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    // WHEN : il est envoyé à la conversation.
+    session.send(destination(), request);
+    MessageResponse response = received.poll(TIMEOUT_SECONDS, SECONDS);
 
-    // THEN : le client reçoit le message complété par le serveur...
-    assertThat(frame).as("aucun message diffusé").isNotNull();
-    assertThat(JsonPath.<String>read(frame, "$.content")).isEqualTo("Bonjour");
-    assertThat(JsonPath.<String>read(frame, "$.senderId")).isEqualTo(CUSTOMER_ID.toString());
-    assertThat(JsonPath.<String>read(frame, "$.conversationId")).isEqualTo(conversationId.toString());
-    assertThatCode(() -> Instant.parse(JsonPath.<String>read(frame, "$.sentAt")))
-        .as("sentAt doit être une date ISO-8601")
-        .doesNotThrowAnyException();
+    // THEN : il est diffusé, complété par le serveur
+    assertThat(response).as("aucun message diffusé").isNotNull();
+    assertThat(response.content()).as("contenu diffusé").isEqualTo("Bonjour");
+    assertThat(response.senderId()).as("expéditeur diffusé").isEqualTo(CUSTOMER_ID);
+    assertThat(response.conversationId()).as("conversation diffusée").isEqualTo(conversationId);
+    assertThat(response.id()).as("id attribué par le serveur").isNotNull();
+    assertThat(response.sentAt()).as("date d'envoi fixée par le serveur").isNotNull();
 
-    // THEN : le message est bien enregistré en base.
+    // THEN : puis il est enregistré en base.
     assertThat(chatService.findMessages(conversationId))
-        .extracting(MessageResponse::content)
-        .containsExactly("Bonjour");
+        .as("le message diffusé doit être celui enregistré en base")
+        .extracting(MessageResponse::id)
+        .containsExactly(response.id());
   }
 
-  /**
-   * Un message invalide (vide, trop long, expéditeur inconnu) n'est ni diffusé
-   * ni enregistré : seul le message valide envoyé ensuite est reçu.
-   * 
-   * @param invalidMessage corps JSON refusé par le serveur
-   */
-  @ParameterizedTest(name = "[{index}] {0}")
-  @MethodSource("invalidMessages")
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("invalidRequests")
   @DisplayName("Un message invalide n'est ni enregistré ni diffusé")
-  void invalidMessage_isNeitherSavedNorBroadcast(String invalidMessage) throws Exception {
-    // GIVEN : un message invalide (fourni par invalidMessages) et un témoin valide.
-    String witnessMessage = json(CUSTOMER_ID, "ok");
+  void invalidMessage_isNeitherSavedNorBroadcast(MessageRequest invalidMessage) throws Exception {
+    // GIVEN : un message invalide, puis un message valide "témoin".
+    MessageRequest validMessage = new MessageRequest(CUSTOMER_ID, "ok");
 
     // WHEN : les deux sont envoyés à la suite.
-    send(invalidMessage);
-    send(witnessMessage);
-    String frame = received.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    session.send(destination(), invalidMessage);
+    session.send(destination(), validMessage);
+    MessageResponse firstMessage = received.poll(TIMEOUT_SECONDS, SECONDS);
 
-    // THEN : le 1er message reçu est le témoin, donc l'invalide n'a pas été diffusé
-    assertThat(frame).as("le témoin n'est pas arrivé").isNotNull();
-    assertThat(JsonPath.<String>read(frame, "$.content")).isEqualTo("ok");
+    // THEN : seul le "témoin" est diffusé (rien n'arrive avant ni après lui)...
+    assertThat(firstMessage).as("le témoin n'est pas arrivé").isNotNull();
+    assertThat(firstMessage.content()).as("le premier message reçu doit être le témoin").isEqualTo("ok");
+    assertThat(received.poll(500, MILLISECONDS))
+        .as("aucun message ne doit arriver après le témoin")
+        .isNull();
 
-    // THEN : on vérifie que rien n'arrive après le témoin (en cas de délais)
-    assertThat(received.poll(500, TimeUnit.MILLISECONDS)).isNull();
-
-    // THEN : seul le témoin est enregistré en base.
+    // THEN : puis seul le "témoin" est enregistré.
     assertThat(chatService.findMessages(conversationId))
+        .as("seul le témoin doit être enregistré en base")
         .extracting(MessageResponse::content)
         .containsExactly("ok");
   }
 
   /**
-   * Destination sur laquelle le serveur diffuse les messages de la conversation
-   * 
-   * @return la destination de diffusion de la conversation du test
+   * Fournit les messages que le serveur doit refuser.
+   * {@link Named} associe à chacun un label, affiché à la place de {@code {0}}
+   *
+   * @return les messages invalides : contenu vide, trop long, expéditeur inconnu
+   */
+  static Stream<Named<MessageRequest>> invalidRequests() {
+    return Stream.of(
+        Named.of("contenu vide", new MessageRequest(CUSTOMER_ID, "   ")),
+        Named.of("contenu trop long", new MessageRequest(CUSTOMER_ID, "a".repeat(2001))),
+        Named.of("expéditeur inconnu", new MessageRequest(UUID.randomUUID(), "inconnu")));
+  }
+
+  /**
+   * Vérifie si le broker a enregistré au moins
+   * un abonné au topic de la conversation.
+   *
+   * @return {@code true} si au moins une session est abonnée au topic
+   */
+  private boolean isSubscribed() {
+    // Crée un accesseur d'en-têtes pour un message STOMP
+    SimpMessageHeaderAccessor accessor = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
+    // Définit la destination (topic) à tester
+    accessor.setDestination(topic());
+    // Construit un message "sonde" vide avec ces en-têtes
+    Message<byte[]> probe = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+    // Renvoie vrai si au moins un abonnement correspond à la destination
+    return !broker.getSubscriptionRegistry().findSubscriptions(probe).isEmpty();
+  }
+
+  /**
+   * Adresse d'envoi d'un message : le préfixe {@code /app} la route vers
+   * {@code MessageController}.
+   *
+   * @return la destination d'envoi de la conversation du test
+   */
+  private String destination() {
+    return "/app/conversations/" + conversationId + "/messages";
+  }
+
+  /**
+   * Adresse de diffusion : le serveur y publie chaque message accepté,
+   * et les clients s'y abonnent pour le recevoir.
+   *
+   * @return le topic de la conversation du test
    */
   private String topic() {
     return "/topic/conversations/" + conversationId;
-  }
-
-  /**
-   * Cas de message refusés par le serveur.
-   * 
-   * {@link Named} associe un libellé lisible à la place de {@code {0}} dans le
-   * nom du test, tout en passant le JSON en paramètre
-   * 
-   * @return des corps de message que le serveur doit refuser
-   */
-  static Stream<Named<String>> invalidMessages() {
-    return Stream.of(
-        Named.of("contenu vide", json(CUSTOMER_ID, "   ")),
-        Named.of("contenu trop long", json(CUSTOMER_ID, "a".repeat(2001))),
-        Named.of("expéditeur inconnu", json(UUID.randomUUID(), "expéditeur inconnu")));
-  }
-
-  /**
-   * Attend que le broker ait enregistré l'abonnement au topic avant d'envoyer un
-   * message, en vérifiant toutes les 25 ms qu'au moins un abonné est présent.
-   */
-  private void awaitSubscriptionRegistered() {
-    // 1. Prépare les en-têtes d'un message ciblant le topic de la conversation.
-    SimpMessageHeaderAccessor accessor = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
-    accessor.setDestination(topic());
-
-    // 2. Construit une "sonde" vide portant ces en-têtes (jamais envoyée)
-    // pour interroger le registre d'abonnements du broker.
-    Message<byte[]> probe = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
-
-    // 3. Répète la vérification toutes les 25 ms jusqu'à ce que le broker
-    // trouve un abonnement correspondant à la destination de la sonde
-    await()
-        .atMost(Duration.ofSeconds(TIMEOUT_SECONDS))
-        .pollInterval(Duration.ofMillis(25))
-        .until(() -> !brokerHandler.getSubscriptionRegistry().findSubscriptions(probe).isEmpty());
-  }
-
-  /**
-   * Envoie un message JSON vers {@code /app/conversations/{id}/messages}.
-   *
-   * @param json corps du message
-   */
-  private void send(String json) {
-    StompHeaders headers = new StompHeaders();
-    headers.setDestination("/app/conversations/" + conversationId + "/messages");
-    headers.setContentType(MimeTypeUtils.APPLICATION_JSON);
-    session.send(headers, json);
-  }
-
-  /**
-   * Construit le corps JSON d'un message.
-   *
-   * @param senderId identifiant de l'expéditeur
-   * @param content  texte du message
-   * @return le JSON {@code {senderId, content}}
-   */
-  private static String json(UUID senderId, String content) {
-    return "{\"senderId\":\"" + senderId + "\",\"content\":\"" + content + "\"}";
-  }
-
-  /**
-   * Convertisseur du client de test : lit le corps des messages STOMP comme
-   * une chaîne de caractères, sans le transformer en objet.
-   *
-   * {@link StringMessageConverter} n'accepte que {@code text/plain} par défaut ;
-   * on lui ajoute {@code application/json} pour recevoir les messages du serveur.
-   */
-  private static final class JsonStringMessageConverter extends StringMessageConverter {
-
-    JsonStringMessageConverter() {
-      addSupportedMimeTypes(MimeTypeUtils.APPLICATION_JSON);
-    }
   }
 }
