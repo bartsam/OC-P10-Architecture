@@ -22,8 +22,10 @@
     <ul>
       @for (conversation of conversations(); track conversation.id) {
         <li>
-          Conversation {{ conversation.id.slice(0, 8) }}, créée le
-          {{ conversation.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+          <a [routerLink]="['/chat', conversation.id]">
+            Conversation {{ conversation.id.slice(0, 8) }}, créée le
+            {{ conversation.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+          </a>
         </li>
       }
     </ul>

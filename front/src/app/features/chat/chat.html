@@ -1,0 +1,23 @@
+<section>
+  <header class="chat-header">
+    <h1>{{ mode() === 'customer' ? 'Tchat client' : 'Tchat conseiller' }}</h1>
+    <a routerLink="/">Retour à l'accueil</a>
+  </header>
+
+  @if (errorMessage()) {
+    <p class="error" role="alert">{{ errorMessage() }}</p>
+  } @else if (loading()) {
+    <p>Chargement de l'historique…</p>
+  } @else {
+    <ul class="messages" aria-label="Messages de la conversation">
+      @for (message of messages(); track message.id) {
+        <li class="message" [class.mine]="isMine(message)">
+          <p class="meta">{{ authorLabel(message) }}, à {{ message.sentAt | date: 'HH:mm' }}</p>
+          <p class="content">{{ message.content }}</p>
+        </li>
+      } @empty {
+        <li>Aucun message pour le moment.</li>
+      }
+    </ul>
+  }
+</section>

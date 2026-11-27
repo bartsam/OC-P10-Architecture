@@ -1,0 +1,40 @@
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.messages {
+  list-style: none;
+  padding: 0;
+}
+
+.message {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #c8c8c8;
+  border-radius: 0.5rem;
+
+  &.mine {
+    background: #eef3ff;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.meta {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.error {
+  color: red;
+  font-weight: 600;
+}
