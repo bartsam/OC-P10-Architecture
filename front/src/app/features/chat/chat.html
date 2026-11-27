@@ -4,20 +4,42 @@
     <a routerLink="/">Retour à l'accueil</a>
   </header>
 
+  <p class="status">{{ connectionLabel() }}</p>
+
   @if (errorMessage()) {
     <p class="error" role="alert">{{ errorMessage() }}</p>
-  } @else if (loading()) {
-    <p>Chargement de l'historique…</p>
   } @else {
-    <ul class="messages" aria-label="Messages de la conversation">
-      @for (message of messages(); track message.id) {
-        <li class="message" [class.mine]="isMine(message)">
-          <p class="meta">{{ authorLabel(message) }}, à {{ message.sentAt | date: 'HH:mm' }}</p>
-          <p class="content">{{ message.content }}</p>
-        </li>
-      } @empty {
-        <li>Aucun message pour le moment.</li>
+    @if (loading()) {
+      <p>Chargement de l'historique…</p>
+    } @else {
+      <ul class="messages" aria-label="Messages de la conversation">
+        @for (message of messages(); track message.id) {
+          <li class="message" [class.mine]="isMine(message)">
+            <p class="meta">{{ authorLabel(message) }}, à {{ message.sentAt | date: 'HH:mm' }}</p>
+            <p class="content">{{ message.content }}</p>
+          </li>
+        } @empty {
+          <li>Aucun message pour le moment.</li>
+        }
+      </ul>
+    }
+
+    <form (submit)="send($event)">
+      <label for="message-input">Votre message</label>
+      <textarea
+        #field
+        id="message-input"
+        name="content"
+        rows="3"
+        maxlength="2000"
+        [value]="draft()"
+        (input)="draft.set(field.value)"
+        (keydown.enter)="send($event)"
+      ></textarea>
+      @if (sendError()) {
+        <p class="error" role="alert">{{ sendError() }}</p>
       }
-    </ul>
+      <button type="submit" [disabled]="!canSend()">Envoyer</button>
+    </form>
   }
 </section>

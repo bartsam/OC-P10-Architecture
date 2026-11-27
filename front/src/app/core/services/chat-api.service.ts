@@ -7,7 +7,7 @@ import { Message } from '../models/message.model';
 
 /** Accès à l'API REST des conversations. */
 @Injectable({ providedIn: 'root' })
-export class ChatService {
+export class ChatApiService {
   private readonly http = inject(HttpClient);
 
   /** Liste les conversations, de la plus récente à la plus ancienne (`GET /api/conversations`). */

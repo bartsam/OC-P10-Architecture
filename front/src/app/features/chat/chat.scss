@@ -4,6 +4,11 @@
   align-items: baseline;
 }
 
+.status {
+  font-size: 0.875rem;
+  color: #444;
+}
+
 .messages {
   list-style: none;
   padding: 0;
@@ -34,7 +39,26 @@
   overflow-wrap: anywhere;
 }
 
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+textarea {
+  font: inherit;
+  padding: 0.5rem;
+}
+
+button {
+  align-self: flex-start;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
 .error {
-  color: red;
+  color: #b00020;
   font-weight: 600;
 }

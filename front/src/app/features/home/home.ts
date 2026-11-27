@@ -3,7 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 
 import { Conversation } from '../../core/models/conversation.model';
-import { ChatService } from '../../core/services/chat.service';
+import { ChatApiService } from '../../core/services/chat-api.service';
 import { UserService } from '../../core/services/user.service';
 
 /** Page d'accueil : démarrage d'une conversation et liste des conversations existantes. */
@@ -14,7 +14,7 @@ import { UserService } from '../../core/services/user.service';
   styleUrl: './home.scss',
 })
 export class Home {
-  private readonly chatService = inject(ChatService);
+  private readonly chatApiService = inject(ChatApiService);
   private readonly router = inject(Router);
 
   protected readonly conversations = signal<Conversation[]>([]);
@@ -31,7 +31,7 @@ export class Home {
   protected startConversation(): void {
     this.creating.set(true);
     this.errorMessage.set(null);
-    this.chatService.create().subscribe({
+    this.chatApiService.create().subscribe({
       next: (conversation) => {
         this.creating.set(false);
         void this.router.navigate(['/chat', conversation.id]);
@@ -45,7 +45,7 @@ export class Home {
 
   /** Charge les conversations existantes (les requêtes HTTP se terminent seules, pas de désabonnement). */
   private loadConversations(): void {
-    this.chatService.list().subscribe({
+    this.chatApiService.list().subscribe({
       next: (conversations) => {
         this.conversations.set(conversations);
         this.loading.set(false);
