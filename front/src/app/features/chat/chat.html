@@ -2,6 +2,17 @@
   <header class="chat-header">
     <h1>{{ mode() === 'customer' ? 'Tchat client' : 'Tchat conseiller' }}</h1>
     <a routerLink="/">Retour à l'accueil</a>
+
+    @if (mode() === 'customer') {
+      <div class="agent-link">
+        <span>Lien agent de cette conversation :</span>
+        <a [href]="agentLink()" target="_blank" rel="noopener">{{ agentLink() }}</a>
+        <button type="button" aria-label="Copier le lien agent" (click)="copyAgentLink()">
+          Copier
+        </button>
+        <output>{{ copyStatus() }}</output>
+      </div>
+    }
   </header>
 
   <p class="status">{{ connectionLabel() }}</p>

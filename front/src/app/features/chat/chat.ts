@@ -1,6 +1,6 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { switchMap, tap } from 'rxjs';
@@ -34,17 +34,24 @@ export class Chat {
   private readonly chatSocketService = inject(ChatSocketService);
   private readonly userService = inject(UserService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly document = inject(DOCUMENT);
 
   protected readonly messages = signal<Message[]>([]);
   protected readonly loading = signal(true);
   protected readonly connection = signal<ConnectionState>('connecting');
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly sendError = signal<string | null>(null);
+  protected readonly copyStatus = signal<string | null>(null);
   protected readonly draft = signal('');
 
   /** Utilisateur de démo correspondant à la vue ouverte. */
   protected readonly currentUser = computed(() =>
     this.mode() === 'customer' ? this.userService.customer() : this.userService.agent(),
+  );
+
+  /** Lien absolu vers la vue agent de cette conversation */
+  protected readonly agentLink = computed(
+    () => `${this.document.location.origin}/agent/${this.id()}`,
   );
 
   /** Label de l'état de la connexion. */
@@ -100,6 +107,16 @@ export class Chat {
     }
   }
 
+  /** Copie le lien agent dans le presse-papiers et annonce le résultat en texte. */
+  protected async copyAgentLink(): Promise<void> {
+    try {
+      await this.document.defaultView?.navigator.clipboard.writeText(this.agentLink());
+      this.copyStatus.set('Lien agent copié.');
+    } catch {
+      this.copyStatus.set('Copie impossible : copiez le lien manuellement.');
+    }
+  }
+
   /** Indique si le message a été écrit par l'utilisateur de la vue */
   protected isMine(message: Message): boolean {
     return message.senderId === this.currentUser()?.id;
@@ -120,6 +137,7 @@ export class Chat {
     this.connection.set('connecting');
     this.errorMessage.set(null);
     this.sendError.set(null);
+    this.copyStatus.set(null);
   }
 
   /** Réagit à un événement de la connexion temps réel. */
