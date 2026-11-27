@@ -69,6 +69,13 @@ Le fichier `.env` n'est jamais versionné (seul `.env.example` l'est).
 
 ## 4. Lancement
 
+### Back-end
+
+```bash
+cd back
+./mvnw spring-boot:run   # démarre PostgreSQL (compose.yaml) puis l'API sur http://localhost:8080
+```
+
 ### Front-end
 
 ```bash
@@ -76,12 +83,9 @@ cd front
 npm start   # http://localhost:4200
 ```
 
-### Back-end
-
-```bash
-cd back
-./mvnw spring-boot:run   # démarre PostgreSQL (compose.yaml) puis l'API sur http://localhost:8080
-```
+Le serveur de développement (`ng serve`) active un proxy (`front/proxy.conf.json`, déclaré dans
+`front/angular.json`) : `/api` et `/ws` sont redirigés vers le back (`localhost:8080`), ce qui
+évite toute configuration CORS. Le back doit donc être lancé avant d'utiliser l'application.
 
 ### Tests du back-end
 
