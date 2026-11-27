@@ -43,9 +43,17 @@ Cette PoC (preuve de concept) valide la viabilité des choix architecturaux de l
 ## 2. Prérequis
 
 - JDK 25 (LTS), vérifier avec `java -version`
+- Node.js 24 LTS (minimum) et npm
 - Docker Desktop lancé
 
 ## 3. Installation
+
+### Front-end
+
+```bash
+cd front
+npm install
+```
 
 ### Base de données
 
@@ -60,6 +68,13 @@ docker compose down # arrêt (les données sont conservées)
 Le fichier `.env` n'est jamais versionné (seul `.env.example` l'est).
 
 ## 4. Lancement
+
+### Front-end
+
+```bash
+cd front
+npm start   # http://localhost:4200
+```
 
 ### Back-end
 
