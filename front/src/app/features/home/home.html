@@ -1,0 +1,31 @@
+<section>
+  <h1>Your Car Your Way : tchat</h1>
+
+  @if (userError()) {
+    <p class="error" role="alert">{{ userError() }}</p>
+  }
+
+  <button type="button" (click)="startConversation()" [disabled]="creating()">
+    Démarrer conversation
+  </button>
+
+  @if (errorMessage()) {
+    <p class="error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  <h2>Conversations existantes</h2>
+  @if (loading()) {
+    <p>Chargement…</p>
+  } @else if (conversations().length === 0) {
+    <p>Aucune conversation pour le moment.</p>
+  } @else {
+    <ul>
+      @for (conversation of conversations(); track conversation.id) {
+        <li>
+          Conversation {{ conversation.id.slice(0, 8) }}, créée le
+          {{ conversation.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+        </li>
+      }
+    </ul>
+  }
+</section>

@@ -1,1 +1,25 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Prompt,
+    sans-serif;
+  line-height: 1.5;
+  color: #1a1a1a;
+}
+
+body {
+  margin: 0;
+  padding: 1rem;
+}
+
+main {
+  max-width: 48rem;
+  margin: 0 auto;
+}
+
+:focus-visible {
+  outline: 3px solid #1a56db;
+  outline-offset: 2px;
+}

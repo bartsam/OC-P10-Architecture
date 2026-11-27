@@ -76,6 +76,13 @@ cd back
 ./mvnw spring-boot:run   # démarre PostgreSQL (compose.yaml) puis l'API sur http://localhost:8080
 ```
 
+### Tests du back-end
+
+```bash
+cd back
+./mvnw test   # Docker Desktop doit être lancé : une base PostgreSQL jetable est créée (Testcontainers)
+```
+
 ### Front-end
 
 ```bash
@@ -87,11 +94,11 @@ Le serveur de développement (`ng serve`) active un proxy (`front/proxy.conf.jso
 `front/angular.json`) : `/api` et `/ws` sont redirigés vers le back (`localhost:8080`), ce qui
 évite toute configuration CORS. Le back doit donc être lancé avant d'utiliser l'application.
 
-### Tests du back-end
+### Tests du front-end
 
 ```bash
-cd back
-./mvnw test   # Docker Desktop doit être lancé : une base PostgreSQL jetable est créée (Testcontainers)
+cd front
+npm test -- --no-watch
 ```
 
 ## 6. Fonctionnement
